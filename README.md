@@ -21,27 +21,65 @@
   <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
   [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
 
-## Description
+## Meshtalem Backend
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+NestJS + PostgreSQL backend for the Meshtalem e-commerce platform.
 
-## Project setup
+## Prerequisites
+
+- Node.js 18+
+- PostgreSQL 14+
+
+## Setup
+
+### 1. Install dependencies
 
 ```bash
-$ npm install
+npm install
 ```
 
-## Compile and run the project
+### 2. Create Database
+
+```sql
+CREATE DATABASE meshtalem_db;
+```
+
+### 3. Configure Environment
 
 ```bash
-# development
-$ npm run start
+cp .env.example .env
+# Edit .env with your database credentials
+```
 
-# watch mode
-$ npm run start:dev
+### 4. Run
 
-# production mode
-$ npm run start:prod
+```bash
+# Development (with hot reload)
+npm run start:dev
+
+# Production
+npm run build
+npm run start:prod
+```
+
+The backend will run on **http://localhost:3000**
+
+## Default Admin Account
+
+After first run, seed data creates:
+- **Email:** admin@meshtalem.com
+- **Password:** Admin@2024
+
+## Project Structure
+
+```
+src/
+├── auth/          # JWT authentication
+├── users/         # User management
+├── products/      # Product CRUD + approval
+├── categories/    # Categories with subcategories
+├── orders/        # Order management
+└── vendors/       # Vendor management
 ```
 
 ## Run tests
