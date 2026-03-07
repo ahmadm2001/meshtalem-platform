@@ -21,17 +21,32 @@ import { UserRole } from '../users/user.entity';
 export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}
 
+  /** GET /categories - tree: root categories with children nested */
   @Get()
-  @ApiOperation({ summary: 'קבלת כל הקטגוריות (ציבורי)' })
+  @ApiOperation({ summary: 'קבלת כל הקטגוריות עם תת-קטגוריות (ציבורי)' })
   getAllCategories() {
     return this.categoriesService.getAllCategories();
+  }
+
+  /** GET /categories/flat - flat list of all categories */
+  @Get('flat')
+  @ApiOperation({ summary: 'רשימה שטוחה של כל הקטגוריות (ציבורי)' })
+  getAllFlat() {
+    return this.categoriesService.getAllFlat();
+  }
+
+  /** GET /categories/:id - single category with children */
+  @Get(':id')
+  @ApiOperation({ summary: 'קבלת קטגוריה בודדת עם תת-קטגוריות' })
+  getById(@Param('id', ParseUUIDPipe) id: string) {
+    return this.categoriesService.getById(id);
   }
 
   @Post('admin')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'יצירת קטגוריה חדשה (מנהל)' })
+  @ApiOperation({ summary: 'יצירת קטגוריה חדשה (מנהל) - parentId אופציונלי לתת-קטגוריה' })
   createCategory(@Body() body: any) {
     return this.categoriesService.createCategory(body);
   }
@@ -40,7 +55,7 @@ export class CategoriesController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'עריכת קטגוריה (מנהל)' })
+  @ApiOperation({ summary: 'עריכת קטגוריה (מנהל) - parentId: null להפוך לראשית' })
   updateCategory(@Param('id', ParseUUIDPipe) id: string, @Body() body: any) {
     return this.categoriesService.updateCategory(id, body);
   }
