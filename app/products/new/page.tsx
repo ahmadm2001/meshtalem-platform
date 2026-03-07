@@ -1,9 +1,10 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Sparkles, X, CheckCircle, Plus, Image as ImageIcon } from 'lucide-react';
+import { Sparkles, CheckCircle, Plus } from 'lucide-react';
 import { productsApi, categoriesApi } from '@/lib/api';
 import VendorLayout from '@/components/layout/VendorLayout';
+import ImageUploader from '@/components/ImageUploader';
 import toast from 'react-hot-toast';
 
 export default function NewProductPage() {
@@ -60,18 +61,9 @@ export default function NewProductPage() {
     if (!form.nameAr.trim()) { toast.error('يرجى إدخال اسم المنتج'); return; }
     if (!form.price || Number(form.price) <= 0) { toast.error('يرجى إدخال سعر صحيح'); return; }
 
-    // Validate images - at least 3 valid URLs
-    if (validImages.length < 3) {
-      toast.error('يجب إضافة 3 صور على الأقل للمنتج');
-      return;
-    }
-
-    // Basic URL validation
-    const invalidUrls = validImages.filter((url) => {
-      try { new URL(url); return false; } catch { return true; }
-    });
-    if (invalidUrls.length > 0) {
-      toast.error('يرجى التأكد من صحة روابط الصور');
+    // Validate images - at least 1 image required
+    if (validImages.length < 1) {
+      toast.error('يجب إضافة صورة واحدة على الأقل للمنتج');
       return;
     }
 
@@ -196,61 +188,38 @@ export default function NewProductPage() {
               <div>
                 <h2 className="font-semibold text-gray-800 text-sm">صور المنتج *</h2>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  يجب إضافة <span className="font-bold text-red-500">3 صور على الأقل</span> - أدخل روابط URL للصور
+                  أضف صوراً عبر رابط URL أو ارفعها مباشرة من جهازك
                 </p>
               </div>
-              <span className={`text-xs font-medium px-2 py-1 rounded-full ${validImages.length >= 3 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
-                {validImages.length}/3 صور مطلوبة
+              <span className={`text-xs font-medium px-2 py-1 rounded-full ${validImages.length >= 1 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
+                {validImages.length} صور
               </span>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-4">
               {images.map((url, index) => (
-                <div key={index} className="space-y-2">
-                  <div className="flex gap-2 items-center">
-                    <div className="flex-1 relative">
-                      <input
-                        type="url"
-                        value={url}
-                        onChange={(e) => handleImageChange(index, e.target.value)}
-                        className={`input-field pl-9 text-sm ${index < 3 ? 'border-red-200 focus:border-red-400' : ''}`}
-                        placeholder={`رابط الصورة ${index + 1}${index < 3 ? ' (مطلوب)' : ' (اختياري)'}`}
-                        dir="ltr"
-                      />
-                      <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    </div>
-                    {index >= 3 && (
-                      <button type="button" onClick={() => removeImageField(index)} className="p-2 text-red-400 hover:bg-red-50 rounded-lg">
-                        <X className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                  {/* Image Preview */}
-                  {url && (
-                    <div className="mr-0">
-                      <img
-                        src={url}
-                        alt={`صورة ${index + 1}`}
-                        className="h-20 w-20 object-cover rounded-lg border border-gray-200"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                        onLoad={(e) => { (e.target as HTMLImageElement).style.display = 'block'; }}
-                      />
-                    </div>
-                  )}
+                <div key={index}>
+                  <p className="text-xs font-medium text-gray-500 mb-1.5">
+                    صورة {index + 1}{index === 0 ? ' (رئيسية)' : ''}
+                  </p>
+                  <ImageUploader
+                    value={url}
+                    onChange={(val) => handleImageChange(index, val)}
+                    index={index}
+                    required={index === 0}
+                    showRemove={index >= 1}
+                    onRemove={() => removeImageField(index)}
+                  />
                 </div>
               ))}
             </div>
 
             {images.length < 8 && (
-              <button type="button" onClick={addImageField} className="mt-3 flex items-center gap-2 text-sm text-primary-600 hover:text-primary-700 font-medium">
+              <button type="button" onClick={addImageField} className="mt-4 flex items-center gap-2 text-sm text-primary-600 hover:text-primary-700 font-medium">
                 <Plus className="w-4 h-4" />
                 إضافة صورة أخرى
               </button>
             )}
-
-            <p className="text-xs text-gray-400 mt-3">
-              💡 يمكنك رفع صورك على <a href="https://imgbb.com" target="_blank" rel="noreferrer" className="text-primary-600 underline">imgbb.com</a> أو <a href="https://imgur.com" target="_blank" rel="noreferrer" className="text-primary-600 underline">imgur.com</a> ونسخ الرابط هنا
-            </p>
           </div>
 
           <div className="flex gap-3">
