@@ -50,9 +50,9 @@ export default function AdminProductsPage() {
   useEffect(() => { load(filter); }, [filter]);
 
   const openPreview = async (product: any) => {
-    // Load full product details
+    // Load full product details (admin endpoint - works for pending/hidden products too)
     try {
-      const r = await productsApi.getById(product.id);
+      const r = await productsApi.getByIdAdmin(product.id);
       setPreviewProduct(r.data);
     } catch {
       setPreviewProduct(product);
@@ -61,10 +61,15 @@ export default function AdminProductsPage() {
   };
 
   const approve = async (id: string) => {
-    await productsApi.approve(id);
-    setProducts((p) => p.filter((x) => x.id !== id));
-    setPreviewProduct(null);
-    toast.success('✅ מוצר אושר ופורסם בחנות');
+    try {
+      await productsApi.approve(id);
+      setProducts((p) => p.filter((x) => x.id !== id));
+      setPreviewProduct(null);
+      toast.success('✅ מוצר אושר ופורסם בחנות');
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || 'שגיאה באישור המוצר';
+      toast.error(`שגיאה: ${msg}`);
+    }
   };
 
   const submitReject = async () => {
