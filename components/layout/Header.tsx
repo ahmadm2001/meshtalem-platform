@@ -1,12 +1,11 @@
 'use client';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ShoppingCart, LogOut, Package, Search } from 'lucide-react';
-import { useAuthStore, useCartStore } from '@/store';
+import { ShoppingCart, Search } from 'lucide-react';
+import { useCartStore } from '@/store';
 import { useState, useEffect } from 'react';
 
 export default function Header() {
-  const { isAuthenticated, logout } = useAuthStore();
   const { count } = useCartStore();
   const [search, setSearch] = useState('');
   const [mounted, setMounted] = useState(false);
@@ -44,9 +43,8 @@ export default function Header() {
             </div>
           </form>
 
-          {/* Actions */}
+          {/* Cart only */}
           <div className="flex items-center gap-3 shrink-0">
-            {/* Cart */}
             <Link href="/cart" className="relative p-2 text-gray-600 hover:text-primary-600 transition-colors">
               <ShoppingCart className="w-6 h-6" />
               {mounted && count() > 0 && (
@@ -55,26 +53,6 @@ export default function Header() {
                 </span>
               )}
             </Link>
-
-            {/* User */}
-            {mounted && (isAuthenticated ? (
-              <div className="flex items-center gap-2">
-                <Link href="/orders" className="flex items-center gap-1 text-sm text-gray-600 hover:text-primary-600 transition-colors">
-                  <Package className="w-4 h-4" />
-                  <span className="hidden sm:inline">הזמנות</span>
-                </Link>
-                <button
-                  onClick={logout}
-                  className="flex items-center gap-1 text-sm text-gray-500 hover:text-red-600 transition-colors"
-                >
-                  <LogOut className="w-4 h-4" />
-                </button>
-              </div>
-            ) : (
-              <Link href="/auth/login" className="btn-primary text-sm py-2 px-4">
-                כניסה
-              </Link>
-            ))}
           </div>
         </div>
       </div>

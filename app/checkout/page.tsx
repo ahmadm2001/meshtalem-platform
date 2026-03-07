@@ -1,22 +1,23 @@
 'use client';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { MapPin, Phone, User, CheckCircle } from 'lucide-react';
-import { ordersApi } from '@/lib/api';
-import { useCartStore, useAuthStore } from '@/store';
+import { MapPin, Phone, User, CheckCircle, Mail } from 'lucide-react';
+import { useCartStore } from '@/store';
 import StoreLayout from '@/components/layout/StoreLayout';
 import toast from 'react-hot-toast';
+import axios from 'axios';
+
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
 
 export default function CheckoutPage() {
-  const router = useRouter();
   const { items, total, clearCart } = useCartStore();
-  const { isAuthenticated, user } = useAuthStore();
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [orderId, setOrderId] = useState('');
   const [form, setForm] = useState({
-    fullName: '',
-    phone: '',
+    guestName: '',
+    guestPhone: '',
+    guestEmail: '',
     city: '',
     street: '',
     apartment: '',
@@ -29,30 +30,29 @@ export default function CheckoutPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isAuthenticated) {
-      toast.error('יש להתחבר לפני ביצוע הזמנה');
-      router.push('/auth/login');
-      return;
-    }
-    if (user && (user.role === 'admin' || user.role === 'vendor')) {
-      toast.error('חשבון זה אינו יכול לבצע הזמנות. השתמש בחשבון לקוח.');
-      return;
-    }
     if (items.length === 0) {
       toast.error('העגלה ריקה');
       return;
     }
+    if (!form.guestName || !form.guestPhone || !form.city || !form.street) {
+      toast.error('יש למלא את כל השדות החובה');
+      return;
+    }
     setLoading(true);
     try {
-      await ordersApi.create({
+      const res = await axios.post(`${API}/orders/guest`, {
         items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
-        shippingFullName: form.fullName,
-        shippingPhone: form.phone,
+        guestName: form.guestName,
+        guestPhone: form.guestPhone,
+        guestEmail: form.guestEmail || undefined,
+        shippingFullName: form.guestName,
+        shippingPhone: form.guestPhone,
         shippingCity: form.city,
         shippingStreet: form.street,
-        shippingApartment: form.apartment,
-        shippingNotes: form.notes,
+        shippingApartment: form.apartment || '',
+        shippingNotes: form.notes || undefined,
       });
+      setOrderId(res.data?.id || '');
       clearCart();
       setDone(true);
     } catch (err: any) {
@@ -68,101 +68,165 @@ export default function CheckoutPage() {
         <div className="max-w-lg mx-auto px-4 py-16 text-center">
           <CheckCircle className="w-20 h-20 mx-auto mb-4 text-green-500" />
           <h2 className="text-2xl font-bold text-gray-900 mb-2">ההזמנה התקבלה!</h2>
-          <p className="text-gray-500 mb-6">תודה על הרכישה. נעדכן אותך בסטטוס ההזמנה בהקדם.</p>
-          <div className="flex gap-3 justify-center">
-            <Link href="/orders" className="btn-primary">הזמנות שלי</Link>
-            <Link href="/products" className="btn-secondary">המשך בקניות</Link>
-          </div>
+          <p className="text-gray-500 mb-2">תודה על הרכישה. נעדכן אותך בסטטוס ההזמנה בהקדם.</p>
+          {orderId && (
+            <p className="text-sm text-gray-400 mb-6">מספר הזמנה: <span className="font-mono font-medium text-gray-600">{orderId.slice(0, 8).toUpperCase()}</span></p>
+          )}
+          <Link href="/products" className="btn-primary">המשך בקניות</Link>
         </div>
       </StoreLayout>
     );
   }
 
-  if (items.length === 0) {
-    router.push('/cart');
-    return null;
-  }
-
   return (
     <StoreLayout>
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">פרטי משלוח ותשלום</h1>
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <h1 className="text-2xl font-bold text-gray-900 mb-8 text-center">פרטי משלוח ותשלום</h1>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Form */}
-          <form onSubmit={handleSubmit} className="lg:col-span-2 space-y-4">
-            <div className="card">
-              <h2 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+          <form onSubmit={handleSubmit} className="lg:col-span-2 space-y-6">
+
+            {/* Personal Details */}
+            <div className="bg-white rounded-2xl border border-gray-200 p-6">
+              <div className="flex items-center gap-2 mb-4">
                 <User className="w-5 h-5 text-primary-600" />
-                פרטים אישיים
-              </h2>
+                <h2 className="text-lg font-semibold text-gray-900">פרטים אישיים</h2>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">שם מלא *</label>
-                  <input name="fullName" value={form.fullName} onChange={handleChange} required className="input-field" placeholder="ישראל ישראלי" />
+                  <input
+                    name="guestName"
+                    value={form.guestName}
+                    onChange={handleChange}
+                    required
+                    placeholder="ישראל ישראלי"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">טלפון *</label>
-                  <input name="phone" value={form.phone} onChange={handleChange} required className="input-field" placeholder="050-0000000" />
+                  <input
+                    name="guestPhone"
+                    value={form.guestPhone}
+                    onChange={handleChange}
+                    required
+                    placeholder="050-1234567"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5" /> אימייל (אופציונלי)</span>
+                  </label>
+                  <input
+                    name="guestEmail"
+                    type="email"
+                    value={form.guestEmail}
+                    onChange={handleChange}
+                    placeholder="example@email.com"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
                 </div>
               </div>
             </div>
 
-            <div className="card">
-              <h2 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+            {/* Shipping Address */}
+            <div className="bg-white rounded-2xl border border-gray-200 p-6">
+              <div className="flex items-center gap-2 mb-4">
                 <MapPin className="w-5 h-5 text-primary-600" />
-                כתובת למשלוח
-              </h2>
+                <h2 className="text-lg font-semibold text-gray-900">כתובת למשלוח</h2>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">עיר *</label>
-                  <input name="city" value={form.city} onChange={handleChange} required className="input-field" placeholder="תל אביב" />
+                  <input
+                    name="city"
+                    value={form.city}
+                    onChange={handleChange}
+                    required
+                    placeholder="תל אביב"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">רחוב ומספר *</label>
-                  <input name="street" value={form.street} onChange={handleChange} required className="input-field" placeholder="הרצל 10" />
+                  <input
+                    name="street"
+                    value={form.street}
+                    onChange={handleChange}
+                    required
+                    placeholder="רחוב הרצל 10"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">דירה/כניסה</label>
-                  <input name="apartment" value={form.apartment} onChange={handleChange} className="input-field" placeholder="דירה 5" />
+                  <input
+                    name="apartment"
+                    value={form.apartment}
+                    onChange={handleChange}
+                    placeholder="דירה 5, קומה 2"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">הערות למשלוח</label>
-                  <input name="notes" value={form.notes} onChange={handleChange} className="input-field" placeholder="קוד כניסה, קומה..." />
+                  <input
+                    name="notes"
+                    value={form.notes}
+                    onChange={handleChange}
+                    placeholder="קוד כניסה, שעות מועדפות..."
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
                 </div>
               </div>
             </div>
 
-            <div className="card bg-blue-50 border-blue-100">
-              <div className="flex items-start gap-3">
-                <Phone className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
-                <div>
-                  <p className="font-medium text-blue-800 text-sm">תשלום בעת המסירה</p>
-                  <p className="text-blue-600 text-xs mt-0.5">התשלום יתבצע במזומן או בכרטיס אשראי בעת קבלת החבילה</p>
-                </div>
+            {/* Payment method */}
+            <div className="bg-white rounded-2xl border border-gray-200 p-6">
+              <div className="flex items-center gap-2 mb-3">
+                <Phone className="w-5 h-5 text-primary-600" />
+                <h2 className="text-lg font-semibold text-gray-900">תשלום בעת המסירה</h2>
               </div>
+              <p className="text-sm text-gray-500">התשלום יתבצע במזומן או בכרטיס אשראי בעת קבלת החבילה.</p>
             </div>
 
-            <button type="submit" disabled={loading} className="w-full btn-primary py-3 text-base">
-              {loading ? 'מבצע הזמנה...' : 'אשר הזמנה'}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full btn-primary py-3.5 text-base font-semibold"
+            >
+              {loading ? 'שולח הזמנה...' : 'אשר הזמנה ✓'}
             </button>
           </form>
 
-          {/* Summary */}
-          <div className="card h-fit sticky top-24">
-            <h2 className="font-bold text-gray-900 mb-4">סיכום</h2>
-            <div className="space-y-2 mb-4">
+          {/* Order Summary */}
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 h-fit">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">סיכום הזמנה</h2>
+            <div className="space-y-3 mb-4">
               {items.map((item) => (
-                <div key={item.productId} className="flex justify-between text-sm text-gray-600">
-                  <span className="truncate ml-2">{item.name} ×{item.quantity}</span>
-                  <span className="shrink-0">₪{(item.price * item.quantity).toFixed(2)}</span>
+                <div key={item.productId} className="flex justify-between text-sm">
+                  <span className="text-gray-700 truncate max-w-[160px]">
+                    {item.name} <span className="text-gray-400">×{item.quantity}</span>
+                  </span>
+                  <span className="font-medium text-gray-900">₪{(item.price * item.quantity).toFixed(0)}</span>
                 </div>
               ))}
             </div>
-            <div className="border-t border-gray-100 pt-3">
-              <div className="flex justify-between font-bold text-gray-900">
+            <div className="border-t border-gray-100 pt-3 space-y-2 text-sm">
+              <div className="flex justify-between text-gray-600">
+                <span>סכום ביניים</span>
+                <span>₪{total().toFixed(0)}</span>
+              </div>
+              <div className="flex justify-between text-gray-600">
+                <span>משלוח</span>
+                <span>₪25</span>
+              </div>
+              <div className="flex justify-between font-bold text-base text-gray-900 pt-2 border-t border-gray-100">
                 <span>סה"כ לתשלום</span>
-                <span className="text-primary-600 text-lg">₪{total().toFixed(2)}</span>
+                <span className="text-primary-600">₪{(total() + 25).toFixed(0)}</span>
               </div>
             </div>
           </div>

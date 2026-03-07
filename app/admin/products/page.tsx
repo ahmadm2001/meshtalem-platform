@@ -62,10 +62,13 @@ export default function AdminProductsPage() {
 
   const approve = async (id: string) => {
     try {
+      // Show loading toast while translating
+      const toastId = toast.loading('מתרגם אוטומטית...');
       await productsApi.approve(id);
+      toast.dismiss(toastId);
       setProducts((p) => p.filter((x) => x.id !== id));
       setPreviewProduct(null);
-      toast.success('✅ מוצר אושר ופורסם בחנות');
+      toast.success('✅ מוצר אושר ותורגם לעברית אוטומטית');
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'שגיאה באישור המוצר';
       toast.error(`שגיאה: ${msg}`);

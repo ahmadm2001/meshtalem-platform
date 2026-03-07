@@ -99,9 +99,13 @@ export default function ProductPage() {
               <p className="text-gray-600 text-sm leading-relaxed mb-6">{product.descriptionHe}</p>
             )}
 
-            <div className="flex items-center gap-2 text-sm text-gray-500 mb-6">
+            <div className="flex items-center gap-2 text-sm mb-6">
               <Package className="w-4 h-4" />
-              <span>{product.stock > 0 ? `${product.stock} יחידות במלאי` : 'אזל מהמלאי'}</span>
+              {product.stock > 0 ? (
+                <span className="text-green-600 font-medium">במלאי</span>
+              ) : (
+                <span className="text-red-500 font-medium">אזל מהמלאי</span>
+              )}
             </div>
 
             {/* Quantity */}
