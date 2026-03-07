@@ -52,6 +52,8 @@ export const productsApi = {
 // ─── Categories ─────────────────────────────────────────
 export const categoriesApi = {
   getAll: () => api.get('/categories'),
+  getFlat: () => api.get('/categories/flat'),
+  getById: (id: string) => api.get(`/categories/${id}`),
   create: (data: any) => api.post('/categories/admin', data),
   update: (id: string, data: any) => api.put(`/categories/admin/${id}`, data),
   delete: (id: string) => api.delete(`/categories/admin/${id}`),

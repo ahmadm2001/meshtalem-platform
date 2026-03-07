@@ -12,26 +12,37 @@ import toast from 'react-hot-toast';
 function ProductsContent() {
   const searchParams = useSearchParams();
   const [products, setProducts] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [selectedCat, setSelectedCat] = useState('');
+  const [categories, setCategories] = useState<any[]>([]); // root categories with children
+  const [selectedCat, setSelectedCat] = useState('');      // root category id
+  const [selectedSub, setSelectedSub] = useState('');      // sub-category id
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState(searchParams.get('search') || '');
   const { addItem } = useCartStore();
 
   useEffect(() => {
-    categoriesApi.getAll().then((r) => setCategories(r.data));
+    categoriesApi.getAll().then((r) => setCategories(r.data || []));
   }, []);
+
+  // Sub-categories of currently selected root
+  const subCategories = categories.find((c: any) => c.id === selectedCat)?.children || [];
+
+  const selectRoot = (id: string) => {
+    setSelectedCat(id);
+    setSelectedSub(''); // reset sub when root changes
+  };
 
   useEffect(() => {
     setLoading(true);
+    // Filter by sub-category if selected, otherwise by root category
+    const filterCatId = selectedSub || selectedCat || undefined;
     productsApi.getPublic({
-      categoryId: selectedCat || undefined,
+      categoryId: filterCatId,
       search: search || undefined,
       limit: 40,
     })
       .then((r) => setProducts(r.data?.products || r.data || []))
       .finally(() => setLoading(false));
-  }, [selectedCat, search]);
+  }, [selectedCat, selectedSub, search]);
 
   const handleAddToCart = (product: any) => {
     addItem({
@@ -69,15 +80,13 @@ function ProductsContent() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex gap-6">
           {/* Sidebar - Categories */}
-          <aside className="w-48 shrink-0 hidden md:block">
+          <aside className="w-52 shrink-0 hidden md:block">
             <div className="card sticky top-24">
-              <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2 text-sm">
-                קטגוריות
-              </h3>
-              <ul className="space-y-1">
+              <h3 className="font-bold text-gray-800 mb-3 text-sm">קטגוריות</h3>
+              <ul className="space-y-0.5">
                 <li>
                   <button
-                    onClick={() => setSelectedCat('')}
+                    onClick={() => { selectRoot(''); }}
                     className={`w-full text-right text-sm px-3 py-2 rounded-lg transition-colors ${
                       !selectedCat ? 'bg-primary-50 text-primary-700 font-medium' : 'text-gray-600 hover:bg-gray-50'
                     }`}
@@ -85,16 +94,46 @@ function ProductsContent() {
                     כל המוצרים
                   </button>
                 </li>
-                {categories.map((cat) => (
+                {categories.map((cat: any) => (
                   <li key={cat.id}>
                     <button
-                      onClick={() => setSelectedCat(cat.id)}
-                      className={`w-full text-right text-sm px-3 py-2 rounded-lg transition-colors ${
+                      onClick={() => selectRoot(cat.id)}
+                      className={`w-full text-right text-sm px-3 py-2 rounded-lg transition-colors flex items-center justify-between ${
                         selectedCat === cat.id ? 'bg-primary-50 text-primary-700 font-medium' : 'text-gray-600 hover:bg-gray-50'
                       }`}
                     >
-                      {cat.nameHe}
+                      <span>{cat.nameHe}</span>
+                      {(cat.children?.length ?? 0) > 0 && (
+                        <span className="text-xs text-gray-400">{cat.children.length}</span>
+                      )}
                     </button>
+                    {/* Sub-categories - shown when root is selected */}
+                    {selectedCat === cat.id && (cat.children?.length ?? 0) > 0 && (
+                      <ul className="mr-3 mt-0.5 space-y-0.5 border-r-2 border-primary-100 pr-2">
+                        <li>
+                          <button
+                            onClick={() => setSelectedSub('')}
+                            className={`w-full text-right text-xs px-2 py-1.5 rounded-lg transition-colors ${
+                              !selectedSub ? 'text-primary-600 font-medium' : 'text-gray-500 hover:bg-gray-50'
+                            }`}
+                          >
+                            הכל
+                          </button>
+                        </li>
+                        {cat.children.map((sub: any) => (
+                          <li key={sub.id}>
+                            <button
+                              onClick={() => setSelectedSub(sub.id)}
+                              className={`w-full text-right text-xs px-2 py-1.5 rounded-lg transition-colors ${
+                                selectedSub === sub.id ? 'bg-primary-50 text-primary-700 font-medium' : 'text-gray-500 hover:bg-gray-50'
+                              }`}
+                            >
+                              {sub.nameHe}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -104,19 +143,19 @@ function ProductsContent() {
           {/* Products Grid */}
           <div className="flex-1">
             {/* Mobile categories */}
-            <div className="flex gap-2 overflow-x-auto pb-2 mb-4 md:hidden">
+            <div className="flex gap-2 overflow-x-auto pb-2 mb-2 md:hidden">
               <button
-                onClick={() => setSelectedCat('')}
+                onClick={() => { selectRoot(''); }}
                 className={`shrink-0 text-sm px-3 py-1.5 rounded-full border transition-colors ${
                   !selectedCat ? 'bg-primary-600 text-white border-primary-600' : 'border-gray-200 text-gray-600'
                 }`}
               >
                 הכל
               </button>
-              {categories.map((cat) => (
+              {categories.map((cat: any) => (
                 <button
                   key={cat.id}
-                  onClick={() => setSelectedCat(cat.id)}
+                  onClick={() => selectRoot(cat.id)}
                   className={`shrink-0 text-sm px-3 py-1.5 rounded-full border transition-colors ${
                     selectedCat === cat.id ? 'bg-primary-600 text-white border-primary-600' : 'border-gray-200 text-gray-600'
                   }`}
@@ -125,6 +164,30 @@ function ProductsContent() {
                 </button>
               ))}
             </div>
+            {/* Mobile sub-categories */}
+            {selectedCat && subCategories.length > 0 && (
+              <div className="flex gap-2 overflow-x-auto pb-2 mb-4 md:hidden">
+                <button
+                  onClick={() => setSelectedSub('')}
+                  className={`shrink-0 text-xs px-3 py-1 rounded-full border transition-colors ${
+                    !selectedSub ? 'bg-primary-100 text-primary-700 border-primary-200' : 'border-gray-200 text-gray-500'
+                  }`}
+                >
+                  הכל
+                </button>
+                {subCategories.map((sub: any) => (
+                  <button
+                    key={sub.id}
+                    onClick={() => setSelectedSub(sub.id)}
+                    className={`shrink-0 text-xs px-3 py-1 rounded-full border transition-colors ${
+                      selectedSub === sub.id ? 'bg-primary-100 text-primary-700 border-primary-200' : 'border-gray-200 text-gray-500'
+                    }`}
+                  >
+                    {sub.nameHe}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {loading ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
