@@ -51,7 +51,7 @@ export class ProductsService {
       price: dto.price,
       stock: dto.stock,
       images: dto.images || [],
-      status: ProductStatus.PENDING, // Always pending until admin approves
+      status: ProductStatus.PENDING,
     });
 
     return this.productRepository.save(product);
@@ -65,7 +65,6 @@ export class ProductsService {
 
     if (!product) throw new NotFoundException('المنتج غير موجود');
 
-    // If Arabic content changed, re-translate
     if (dto.nameAr || dto.descriptionAr) {
       const { nameHe, descriptionHe } =
         await this.translationService.translateProductContent(
@@ -77,7 +76,6 @@ export class ProductsService {
       dto['translationApproved'] = false;
     }
 
-    // Reset to pending if content changed
     if (dto.nameAr || dto.descriptionAr || dto.price) {
       dto['status'] = ProductStatus.PENDING;
     }
@@ -100,11 +98,12 @@ export class ProductsService {
     const vendorId = await this.getVendorIdByUserId(userId);
     return this.productRepository.find({
       where: { vendorId },
+      relations: ['category'],
       order: { createdAt: 'DESC' },
     });
   }
 
-  // ==================== CUSTOMER ACTIONS (no vendor info exposed) ====================
+  // ==================== CUSTOMER ACTIONS ====================
 
   async getPublicProducts(filters?: {
     categoryId?: string;
@@ -123,7 +122,7 @@ export class ProductsService {
       .leftJoinAndSelect('product.category', 'category')
       .where('product.status = :status', { status: ProductStatus.APPROVED })
       .andWhere('product.stock > 0')
-      // IMPORTANT: Never expose vendor information to customers
+      .andWhere('product.isHidden = false')
       .select([
         'product.id',
         'product.nameHe',
@@ -144,7 +143,7 @@ export class ProductsService {
 
     if (filters?.search) {
       query.andWhere(
-        '(product.nameHe ILIKE :search OR product.descriptionHe ILIKE :search)',
+        '(product.nameHe ILIKE :search OR product.descriptionHe ILIKE :search OR product.nameAr ILIKE :search)',
         { search: `%${filters.search}%` },
       );
     }
@@ -175,7 +174,7 @@ export class ProductsService {
       .leftJoinAndSelect('product.category', 'category')
       .where('product.id = :id', { id: productId })
       .andWhere('product.status = :status', { status: ProductStatus.APPROVED })
-      // IMPORTANT: Vendor info is NOT included here
+      .andWhere('product.isHidden = false')
       .select([
         'product.id',
         'product.nameHe',
@@ -195,13 +194,22 @@ export class ProductsService {
 
   // ==================== ADMIN ACTIONS ====================
 
-  async getAllProducts(status?: string) {
-    const where = status ? { status: status as ProductStatus } : {};
-    return this.productRepository.find({
-      where,
-      relations: ['vendor', 'vendor.user', 'category'],
-      order: { createdAt: 'DESC' },
-    });
+  async getAllProducts(status?: string, vendorId?: string) {
+    const query = this.productRepository
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.vendor', 'vendor')
+      .leftJoinAndSelect('vendor.user', 'user')
+      .leftJoinAndSelect('product.category', 'category')
+      .orderBy('product.createdAt', 'DESC');
+
+    if (status) {
+      query.andWhere('product.status = :status', { status });
+    }
+    if (vendorId) {
+      query.andWhere('product.vendorId = :vendorId', { vendorId });
+    }
+
+    return query.getMany();
   }
 
   async getPendingProducts() {
@@ -212,9 +220,19 @@ export class ProductsService {
     });
   }
 
+  async getProductByIdAdmin(productId: string) {
+    const product = await this.productRepository.findOne({
+      where: { id: productId },
+      relations: ['vendor', 'vendor.user', 'category'],
+    });
+    if (!product) throw new NotFoundException('המוצר לא נמצא');
+    return product;
+  }
+
   async approveProduct(productId: string, adminNote?: string) {
     const product = await this.productRepository.findOne({
       where: { id: productId },
+      relations: ['vendor', 'vendor.user', 'category'],
     });
     if (!product) throw new NotFoundException('המוצר לא נמצא');
 
@@ -235,6 +253,47 @@ export class ProductsService {
     product.rejectionReason = reason;
 
     return this.productRepository.save(product);
+  }
+
+  async adminUpdateProduct(productId: string, dto: any) {
+    const product = await this.productRepository.findOne({
+      where: { id: productId },
+      relations: ['vendor', 'vendor.user', 'category'],
+    });
+    if (!product) throw new NotFoundException('המוצר לא נמצא');
+
+    // If admin changes Arabic content, re-translate
+    if (dto.nameAr || dto.descriptionAr) {
+      const { nameHe, descriptionHe } =
+        await this.translationService.translateProductContent(
+          dto.nameAr || product.nameAr,
+          dto.descriptionAr || product.descriptionAr || '',
+        );
+      if (!dto.nameHe) dto.nameHe = nameHe;
+      if (!dto.descriptionHe) dto.descriptionHe = descriptionHe;
+    }
+
+    Object.assign(product, dto);
+    return this.productRepository.save(product);
+  }
+
+  async adminDeleteProduct(productId: string) {
+    const product = await this.productRepository.findOne({
+      where: { id: productId },
+    });
+    if (!product) throw new NotFoundException('המוצר לא נמצא');
+    await this.productRepository.remove(product);
+    return { message: 'המוצר נמחק בהצלחה' };
+  }
+
+  async toggleHideProduct(productId: string) {
+    const product = await this.productRepository.findOne({
+      where: { id: productId },
+    });
+    if (!product) throw new NotFoundException('המוצר לא נמצא');
+    product.isHidden = !product.isHidden;
+    await this.productRepository.save(product);
+    return { message: product.isHidden ? 'המוצר הוסתר' : 'המוצר הוצג מחדש', isHidden: product.isHidden };
   }
 
   async adminUpdateTranslation(

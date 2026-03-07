@@ -78,6 +78,9 @@ export class Product {
   @Column({ default: false })
   translationApproved: boolean;
 
+  @Column({ default: false })
+  isHidden: boolean;
+
   @CreateDateColumn()
   createdAt: Date;
 

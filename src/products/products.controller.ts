@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Patch,
   Delete,
   Body,
   Param,
@@ -55,7 +56,7 @@ export class ProductsController {
   }
 
   @Get('public/:id')
-  @ApiOperation({ summary: 'קבלת מוצר בודד (ללקוחות, ללא פרטי ספק)' })
+  @ApiOperation({ summary: 'קבלת מוצר בודד (ללקוחות)' })
   getPublicProduct(@Param('id', ParseUUIDPipe) id: string) {
     return this.productsService.getPublicProductById(id);
   }
@@ -66,7 +67,7 @@ export class ProductsController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.VENDOR)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'הוספת מוצר חדש (ספק) - עם תרגום AI אוטומטי' })
+  @ApiOperation({ summary: 'הוספת מוצר חדש (ספק)' })
   createProduct(@CurrentUser() user: User, @Body() dto: CreateProductDto) {
     return this.productsService.createProduct(user.id, dto);
   }
@@ -84,7 +85,7 @@ export class ProductsController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.VENDOR)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'עריכת מוצר (ספק) - מחזיר לסטטוס ממתין' })
+  @ApiOperation({ summary: 'עריכת מוצר (ספק)' })
   updateProduct(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: User,
@@ -111,9 +112,14 @@ export class ProductsController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'כל המוצרים (מנהל)' })
-  getAllProducts(@Query('status') status?: string) {
-    return this.productsService.getAllProducts(status);
+  @ApiOperation({ summary: 'כל המוצרים (מנהל) - עם פרטי ספק' })
+  @ApiQuery({ name: 'status', required: false })
+  @ApiQuery({ name: 'vendorId', required: false })
+  getAllProducts(
+    @Query('status') status?: string,
+    @Query('vendorId') vendorId?: string,
+  ) {
+    return this.productsService.getAllProducts(status, vendorId);
   }
 
   @Get('admin/pending')
@@ -123,6 +129,45 @@ export class ProductsController {
   @ApiOperation({ summary: 'מוצרים ממתינים לאישור (מנהל)' })
   getPendingProducts() {
     return this.productsService.getPendingProducts();
+  }
+
+  @Get('admin/:id')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'פרטי מוצר מלאים (מנהל) - כולל ספק' })
+  getProductAdmin(@Param('id', ParseUUIDPipe) id: string) {
+    return this.productsService.getProductByIdAdmin(id);
+  }
+
+  @Put('admin/:id')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'עריכת מוצר (מנהל) - עריכה מלאה' })
+  adminUpdateProduct(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: any,
+  ) {
+    return this.productsService.adminUpdateProduct(id, dto);
+  }
+
+  @Delete('admin/:id')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'מחיקת מוצר (מנהל) - מחיקה מוחלטת' })
+  adminDeleteProduct(@Param('id', ParseUUIDPipe) id: string) {
+    return this.productsService.adminDeleteProduct(id);
+  }
+
+  @Patch('admin/:id/toggle-hide')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'הסתרה/הצגה של מוצר (מנהל)' })
+  toggleHideProduct(@Param('id', ParseUUIDPipe) id: string) {
+    return this.productsService.toggleHideProduct(id);
   }
 
   @Put('admin/:id/approve')
