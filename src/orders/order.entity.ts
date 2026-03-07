@@ -31,12 +31,22 @@ export class Order {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => User, { eager: false })
+  @ManyToOne(() => User, { eager: false, nullable: true })
   @JoinColumn({ name: 'customerId' })
   customer: User;
 
-  @Column()
+  @Column({ nullable: true })
   customerId: string;
+
+  // Guest customer (no login required)
+  @Column({ nullable: true })
+  guestName: string;
+
+  @Column({ nullable: true })
+  guestPhone: string;
+
+  @Column({ nullable: true })
+  guestEmail: string;
 
   @OneToMany(() => OrderItem, (item) => item.order, {
     cascade: true,
@@ -57,7 +67,7 @@ export class Order {
   @Column()
   shippingStreet: string;
 
-  @Column()
+  @Column({ nullable: true })
   shippingApartment: string;
 
   @Column({ nullable: true })

@@ -28,6 +28,22 @@ export class CreateOrderDto {
   @Type(() => OrderItemDto)
   items: OrderItemDto[];
 
+  // Guest customer details (no login required)
+  @ApiPropertyOptional({ example: 'ישראל ישראלי' })
+  @IsOptional()
+  @IsString()
+  guestName?: string;
+
+  @ApiPropertyOptional({ example: '050-1234567' })
+  @IsOptional()
+  @IsString()
+  guestPhone?: string;
+
+  @ApiPropertyOptional({ example: 'customer@email.com' })
+  @IsOptional()
+  @IsString()
+  guestEmail?: string;
+
   @ApiProperty({ example: 'ישראל ישראלי' })
   @IsString()
   shippingFullName: string;
@@ -44,9 +60,10 @@ export class CreateOrderDto {
   @IsString()
   shippingStreet: string;
 
-  @ApiProperty({ example: 'דירה 5' })
+  @ApiPropertyOptional({ example: 'דירה 5' })
+  @IsOptional()
   @IsString()
-  shippingApartment: string;
+  shippingApartment?: string;
 
   @ApiPropertyOptional({ example: '6100000' })
   @IsOptional()

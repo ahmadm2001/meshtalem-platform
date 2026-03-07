@@ -236,6 +236,20 @@ export class ProductsService {
     });
     if (!product) throw new NotFoundException('המוצר לא נמצא');
 
+    // Auto-translate if Hebrew name is missing or same as Arabic
+    if (!product.nameHe || product.nameHe === product.nameAr) {
+      try {
+        const { nameHe, descriptionHe } = await this.translationService.translateProductContent(
+          product.nameAr,
+          product.descriptionAr || '',
+        );
+        product.nameHe = nameHe;
+        if (descriptionHe) product.descriptionHe = descriptionHe;
+      } catch (e) {
+        // Translation failed - keep existing values
+      }
+    }
+
     product.status = ProductStatus.APPROVED;
     product.translationApproved = true;
     if (adminNote) product.adminNote = adminNote;

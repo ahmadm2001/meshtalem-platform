@@ -31,7 +31,15 @@ export class OrdersService {
     return vendor?.id || null;
   }
 
+  async createGuestOrder(dto: CreateOrderDto) {
+    return this.createOrderInternal(null, dto);
+  }
+
   async createOrder(customerId: string, dto: CreateOrderDto) {
+    return this.createOrderInternal(customerId, dto);
+  }
+
+  private async createOrderInternal(customerId: string | null, dto: CreateOrderDto) {
     // Validate all products and calculate totals
     const orderItems: Partial<OrderItem>[] = [];
     let subtotal = 0;
@@ -69,7 +77,10 @@ export class OrdersService {
     const total = subtotal + shippingCost;
 
     const order = this.orderRepository.create({
-      customerId,
+      customerId: customerId || undefined,
+      guestName: dto.guestName,
+      guestPhone: dto.guestPhone,
+      guestEmail: dto.guestEmail,
       shippingFullName: dto.shippingFullName,
       shippingPhone: dto.shippingPhone,
       shippingCity: dto.shippingCity,

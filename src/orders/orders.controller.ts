@@ -8,6 +8,7 @@ import {
   Query,
   UseGuards,
   ParseUUIDPipe,
+  Request,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
@@ -21,64 +22,32 @@ import { OrderStatus } from './order.entity';
 
 @ApiTags('Orders - הזמנות')
 @Controller('orders')
-@UseGuards(AuthGuard('jwt'))
-@ApiBearerAuth()
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
-  // ========== CUSTOMER ==========
+  // ========== GUEST / PUBLIC ==========
 
-  @Post()
-  @UseGuards(RolesGuard)
-  @Roles(UserRole.CUSTOMER)
-  @ApiOperation({ summary: 'יצירת הזמנה חדשה (לקוח)' })
-  createOrder(@CurrentUser() user: User, @Body() dto: CreateOrderDto) {
-    return this.ordersService.createOrder(user.id, dto);
-  }
-
-  @Get('my')
-  @UseGuards(RolesGuard)
-  @Roles(UserRole.CUSTOMER)
-  @ApiOperation({ summary: 'הזמנות שלי (לקוח)' })
-  getMyOrders(@CurrentUser() user: User) {
-    return this.ordersService.getMyOrders(user.id);
-  }
-
-  @Get('my/:id')
-  @UseGuards(RolesGuard)
-  @Roles(UserRole.CUSTOMER)
-  @ApiOperation({ summary: 'פרטי הזמנה בודדת (לקוח)' })
-  getMyOrder(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: User,
-  ) {
-    return this.ordersService.getOrderById(id, user.id);
-  }
-
-  @Put('my/:id/cancel')
-  @UseGuards(RolesGuard)
-  @Roles(UserRole.CUSTOMER)
-  @ApiOperation({ summary: 'ביטול הזמנה (לקוח)' })
-  cancelOrder(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: User,
-  ) {
-    return this.ordersService.cancelOrder(id, user.id);
+  @Post('guest')
+  @ApiOperation({ summary: 'יצירת הזמנה ללא התחברות (guest)' })
+  createGuestOrder(@Body() dto: CreateOrderDto) {
+    return this.ordersService.createGuestOrder(dto);
   }
 
   // ========== VENDOR ==========
 
   @Get('vendor')
-  @UseGuards(RolesGuard)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.VENDOR)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'הזמנות הספק (מוצרים שנמכרו)' })
   getVendorOrders(@CurrentUser() user: User) {
     return this.ordersService.getVendorOrders(user.id);
   }
 
   @Get('vendor/stats')
-  @UseGuards(RolesGuard)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.VENDOR)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'סטטיסטיקות ספק' })
   getVendorStats(@CurrentUser() user: User) {
     return this.ordersService.getVendorStats(user.id);
@@ -87,16 +56,18 @@ export class OrdersController {
   // ========== ADMIN ==========
 
   @Get('admin')
-  @UseGuards(RolesGuard)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'כל ההזמנות (מנהל)' })
   getAllOrders(@Query('status') status?: OrderStatus) {
     return this.ordersService.getAllOrders(status);
   }
 
   @Put('admin/:id/status')
-  @UseGuards(RolesGuard)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'עדכון סטטוס הזמנה (מנהל)' })
   updateStatus(
     @Param('id', ParseUUIDPipe) id: string,
@@ -106,16 +77,18 @@ export class OrdersController {
   }
 
   @Get('admin/reports/by-vendor')
-  @UseGuards(RolesGuard)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'דוח מכירות לפי ספק (מנהל)' })
   getSalesByVendor(@Query('vendorId') vendorId?: string) {
     return this.ordersService.getSalesByVendor(vendorId);
   }
 
   @Get('admin/reports/dashboard')
-  @UseGuards(RolesGuard)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'סטטיסטיקות דשבורד (מנהל)' })
   getDashboardStats() {
     return this.ordersService.getDashboardStats();
