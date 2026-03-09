@@ -6,28 +6,32 @@ import { productsApi, categoriesApi } from '@/lib/api';
 import VendorLayout from '@/components/layout/VendorLayout';
 import ImageUploader from '@/components/ImageUploader';
 import toast from 'react-hot-toast';
+import { PRODUCT_COLORS, DELIVERY_TIME_OPTIONS } from '@/lib/colors';
 
 export default function NewProductPage() {
   const router = useRouter();
-  const [categories, setCategories] = useState<any[]>([]);   // root categories (tree)
-  const [subCategories, setSubCategories] = useState<any[]>([]); // children of selected root
+  const [categories, setCategories] = useState<any[]>([]);
+  const [subCategories, setSubCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
-  const [images, setImages] = useState<string[]>(['', '', '']);
+  const [images, setImages] = useState<string[]>(['']);
+  const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [form, setForm] = useState({
     nameAr: '',
     descriptionAr: '',
     price: '',
+    shippingFee: '0',
+    warranty: 'none',
     stock: '',
-    categoryId: '',    // root category
-    subCategoryId: '', // sub category (optional)
+    categoryId: '',
+    subCategoryId: '',
+    deliveryTime: '',
   });
 
   useEffect(() => {
     categoriesApi.getAll().then((r) => setCategories(r.data || [])).catch(() => {});
   }, []);
 
-  // When root category changes, load its sub-categories
   const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const rootId = e.target.value;
     const root = categories.find((c: any) => c.id === rootId);
@@ -50,8 +54,14 @@ export default function NewProductPage() {
   };
 
   const removeImageField = (index: number) => {
-    if (images.length <= 3) { toast.error('يجب إضافة 3 صور على الأقل'); return; }
+    if (images.length <= 1) { toast.error('يجب إضافة صورة واحدة على الأقل'); return; }
     setImages(images.filter((_, i) => i !== index));
+  };
+
+  const toggleColor = (key: string) => {
+    setSelectedColors((prev) =>
+      prev.includes(key) ? prev.filter((c) => c !== key) : [...prev, key]
+    );
   };
 
   const validImages = images.filter((url) => url.trim() !== '');
@@ -60,8 +70,6 @@ export default function NewProductPage() {
     e.preventDefault();
     if (!form.nameAr.trim()) { toast.error('يرجى إدخال اسم المنتج'); return; }
     if (!form.price || Number(form.price) <= 0) { toast.error('يرجى إدخال سعر صحيح'); return; }
-
-    // Validate images - at least 1 image required
     if (validImages.length < 1) {
       toast.error('يجب إضافة صورة واحدة على الأقل للمنتج');
       return;
@@ -69,15 +77,18 @@ export default function NewProductPage() {
 
     setLoading(true);
     try {
-      // Use sub-category if selected, otherwise use root category
       const finalCategoryId = form.subCategoryId || form.categoryId || undefined;
       await productsApi.create({
         nameAr: form.nameAr,
         descriptionAr: form.descriptionAr,
         price: Number(form.price),
+        shippingFee: Number(form.shippingFee) || 0,
+        warranty: form.warranty,
         stock: Number(form.stock) || 0,
         categoryId: finalCategoryId,
         images: validImages,
+        deliveryTime: form.deliveryTime || undefined,
+        colors: selectedColors.length > 0 ? selectedColors : undefined,
       });
       setDone(true);
     } catch (err: any) {
@@ -100,7 +111,16 @@ export default function NewProductPage() {
             بعد مراجعة الإدارة وموافقتها، سيظهر المنتج في المتجر.
           </p>
           <div className="flex gap-3 justify-center">
-            <button onClick={() => { setDone(false); setForm({ nameAr:'', descriptionAr:'', price:'', stock:'', categoryId:'', subCategoryId:'' }); setImages(['','','']); setSubCategories([]); }} className="btn-primary">
+            <button
+              onClick={() => {
+                setDone(false);
+                setForm({ nameAr:'', descriptionAr:'', price:'', shippingFee:'0', warranty:'none', stock:'', categoryId:'', subCategoryId:'', deliveryTime:'' });
+                setImages(['']);
+                setSubCategories([]);
+                setSelectedColors([]);
+              }}
+              className="btn-primary"
+            >
               إضافة منتج آخر
             </button>
             <button onClick={() => router.push('/products')} className="btn-secondary">
@@ -143,8 +163,30 @@ export default function NewProductPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">السعر (₪) *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">سعر المنتج (₪) *</label>
                   <input name="price" type="number" min="0" step="0.01" value={form.price} onChange={handleChange} required className="input-field" placeholder="99.90" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">رسم شحن (₪)</label>
+                  <input name="shippingFee" type="number" min="0" step="0.01" value={form.shippingFee} onChange={handleChange} className="input-field" placeholder="0" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">ضمان المنتج</label>
+                  <select name="warranty" value={form.warranty} onChange={handleChange} className="input-field">
+                    <option value="none">لا يوجد ضمان</option>
+                    <option value="6_months">نصف سنة (6 أشهر)</option>
+                    <option value="1_year">سنة</option>
+                    <option value="1.5_years">سنة ونصف</option>
+                    <option value="2_years">سنتان</option>
+                    <option value="2.5_years">سنتان ونصف</option>
+                    <option value="3_years">ثلاث سنوات</option>
+                    <option value="3.5_years">ثلاث سنوات ونصف</option>
+                    <option value="4_years">أربع سنوات</option>
+                    <option value="4.5_years">أربع سنوات ونصف</option>
+                    <option value="5_years">خمس سنوات</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">الكمية المتاحة *</label>
@@ -152,7 +194,6 @@ export default function NewProductPage() {
                 </div>
               </div>
               <div className="space-y-3">
-                {/* Root category */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">الفئة الرئيسية</label>
                   <select value={form.categoryId} onChange={handleCategoryChange} className="input-field">
@@ -162,7 +203,6 @@ export default function NewProductPage() {
                     ))}
                   </select>
                 </div>
-                {/* Sub-category - shown only if root has children */}
                 {subCategories.length > 0 && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -180,6 +220,63 @@ export default function NewProductPage() {
                 )}
               </div>
             </div>
+          </div>
+
+          {/* Delivery Time */}
+          <div className="card">
+            <h2 className="font-semibold text-gray-800 mb-1 text-sm">مدة التوصيل</h2>
+            <p className="text-xs text-gray-500 mb-3">المدة المتوقعة لتوصيل هذا المنتج للعميل</p>
+            <select name="deliveryTime" value={form.deliveryTime} onChange={handleChange} className="input-field">
+              <option value="">-- اختر مدة التوصيل --</option>
+              {DELIVERY_TIME_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.labelAr}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Colors */}
+          <div className="card">
+            <h2 className="font-semibold text-gray-800 mb-1 text-sm">الألوان المتوفرة</h2>
+            <p className="text-xs text-gray-500 mb-4">اختر الألوان المتاحة لهذا المنتج (اختياري)</p>
+            <div className="flex flex-wrap gap-3">
+              {PRODUCT_COLORS.map((color) => {
+                const isSelected = selectedColors.includes(color.key);
+                return (
+                  <button
+                    key={color.key}
+                    type="button"
+                    onClick={() => toggleColor(color.key)}
+                    title={color.nameAr}
+                    className="flex flex-col items-center gap-1 group"
+                  >
+                    <span
+                      className="block transition-all duration-150"
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 4,
+                        backgroundColor: color.hex,
+                        border: isSelected
+                          ? '3px solid #2563EB'
+                          : color.hex === '#FFFFFF' || color.hex === '#E5D3B3'
+                          ? '2px solid #d1d5db'
+                          : '2px solid transparent',
+                        boxShadow: isSelected ? '0 0 0 2px #bfdbfe' : undefined,
+                        outline: 'none',
+                      }}
+                    />
+                    <span className={`text-xs ${isSelected ? 'text-blue-600 font-semibold' : 'text-gray-500'}`}>
+                      {color.nameAr}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            {selectedColors.length > 0 && (
+              <p className="mt-3 text-xs text-green-700 font-medium">
+                تم اختيار {selectedColors.length} لون: {selectedColors.map(k => PRODUCT_COLORS.find(c=>c.key===k)?.nameAr).join('، ')}
+              </p>
+            )}
           </div>
 
           {/* Images Section */}
