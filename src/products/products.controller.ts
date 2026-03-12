@@ -108,6 +108,15 @@ export class ProductsController {
 
   // ========== ADMIN ROUTES ==========
 
+  @Post('admin')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'יצירת מוצר חדש (מנהל) - ישירות מאושר' })
+  adminCreateProduct(@Body() dto: any) {
+    return this.productsService.adminCreateProduct(dto);
+  }
+
   @Get('admin/all')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN)

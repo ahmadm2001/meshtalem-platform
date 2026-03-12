@@ -27,6 +27,30 @@ export class ProductsService {
     return vendor.id;
   }
 
+  // ==================== ADMIN CREATE ====================
+
+  async adminCreateProduct(dto: any) {
+    const product = this.productRepository.create({
+      nameAr: dto.name || dto.nameAr || '',
+      nameHe: dto.name || dto.nameHe || dto.nameAr || '',
+      descriptionAr: dto.description || dto.descriptionAr || '',
+      descriptionHe: dto.description || dto.descriptionHe || dto.descriptionAr || '',
+      customerPrice: dto.price || 0,
+      vendorPrice: dto.price || 0,
+      shippingFee: dto.shippingFee || 0,
+      warranty: dto.warranty || null,
+      deliveryTime: dto.deliveryTime || null,
+      colors: dto.colors && dto.colors.length > 0 ? dto.colors : null,
+      productOptions: dto.productOptions && dto.productOptions.length > 0 ? dto.productOptions : null,
+      stock: dto.stock ?? 0,
+      images: dto.images || [],
+      categoryId: dto.categoryId || null,
+      status: ProductStatus.APPROVED,  // Admin products are auto-approved
+      isHidden: dto.isHidden ?? false,
+    });
+    return this.productRepository.save(product);
+  }
+
   // ==================== VENDOR ACTIONS ====================
 
   async createProduct(userId: string, dto: CreateProductDto) {
