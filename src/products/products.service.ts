@@ -35,14 +35,19 @@ export class ProductsService {
       nameHe: dto.name || dto.nameHe || dto.nameAr || '',
       descriptionAr: dto.description || dto.descriptionAr || '',
       descriptionHe: dto.description || dto.descriptionHe || dto.descriptionAr || '',
-      customerPrice: dto.price || 0,
-      vendorPrice: dto.price || 0,
+      // Q DOOR pricing fields
+      baseEstimatedPrice: dto.baseEstimatedPrice != null ? Number(dto.baseEstimatedPrice) : null,
+      depositAmount: dto.depositAmount != null ? Number(dto.depositAmount) : null,
+      manufacturingTime: dto.manufacturingTime || null,
+      // Legacy price fields (kept for backward compatibility)
+      customerPrice: dto.baseEstimatedPrice || dto.price || 0,
+      vendorPrice: dto.baseEstimatedPrice || dto.price || 0,
       shippingFee: dto.shippingFee || 0,
       warranty: dto.warranty || null,
       deliveryTime: dto.deliveryTime || null,
       colors: dto.colors && dto.colors.length > 0 ? dto.colors : null,
       productOptions: dto.productOptions && dto.productOptions.length > 0 ? dto.productOptions : null,
-      stock: dto.stock ?? 0,
+      stock: 0,  // Doors are made-to-order, no stock tracking
       images: dto.images || [],
       categoryId: dto.categoryId || null,
       status: ProductStatus.APPROVED,  // Admin products are auto-approved
@@ -355,6 +360,22 @@ export class ProductsService {
     if (dto.deliveryTime !== undefined) {
       product.deliveryTime = dto.deliveryTime || null;
       delete dto.deliveryTime;
+    }
+
+    // Handle Q DOOR specific fields
+    if (dto.baseEstimatedPrice !== undefined) {
+      product.baseEstimatedPrice = dto.baseEstimatedPrice != null ? Number(dto.baseEstimatedPrice) : null;
+      // Keep legacy customerPrice in sync
+      if (dto.baseEstimatedPrice) product.customerPrice = Number(dto.baseEstimatedPrice);
+      delete dto.baseEstimatedPrice;
+    }
+    if (dto.depositAmount !== undefined) {
+      product.depositAmount = dto.depositAmount != null ? Number(dto.depositAmount) : null;
+      delete dto.depositAmount;
+    }
+    if (dto.manufacturingTime !== undefined) {
+      product.manufacturingTime = dto.manufacturingTime || null;
+      delete dto.manufacturingTime;
     }
 
     Object.assign(product, dto);

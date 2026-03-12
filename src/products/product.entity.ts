@@ -201,6 +201,30 @@ export class Product {
   @Column({ type: 'json', nullable: true, default: null })
   productOptions: ProductOptionGroup[] | null;
 
+  // ─── Q DOOR specific fields ─────────────────────────────────────────────────
+
+  /**
+   * Estimated base price shown to the customer before configuration.
+   * The configurator adds priceModifiers on top of this value.
+   */
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true, default: null })
+  baseEstimatedPrice: number | null;
+
+  /**
+   * Deposit amount the customer pays online.
+   * Can be a fixed amount or a percentage-derived value set by admin.
+   */
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true, default: null })
+  depositAmount: number | null;
+
+  /**
+   * Manufacturing / lead time shown to the customer (e.g. "4-6 שבועות").
+   */
+  @Column({ nullable: true, default: null })
+  manufacturingTime: string | null;
+
+  // ─── Legacy / marketplace fields (kept for backward compatibility) ────────────
+
   @Column({ default: 0 })
   stock: number;
 
