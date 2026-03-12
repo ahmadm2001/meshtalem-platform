@@ -74,11 +74,11 @@ export class OrdersService {
 
       // Calculate options extra cost from selectedOptions snapshot
       let optionsExtraCost = 0;
-      let selectedOptionsSnapshot: { groupName: string; selectedValue: string; priceModifier: number }[] | null = null;
+      let selectedOptionsSnapshot: any[] | null = null;
 
       if (item.selectedOptions && item.selectedOptions.length > 0) {
-        selectedOptionsSnapshot = item.selectedOptions;
-        optionsExtraCost = item.selectedOptions.reduce((sum, opt) => sum + (Number(opt.priceModifier) || 0), 0);
+        selectedOptionsSnapshot = item.selectedOptions as any[];
+        optionsExtraCost = item.selectedOptions.reduce((sum: number, opt: any) => sum + (Number(opt.priceModifier) || 0), 0);
       }
 
       const customerPriceAtPurchase = baseCustomerPrice + optionsExtraCost;

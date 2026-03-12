@@ -7,6 +7,7 @@ import { VendorsModule } from './vendors/vendors.module';
 import { CategoriesModule } from './categories/categories.module';
 import { ProductsModule } from './products/products.module';
 import { OrdersModule } from './orders/orders.module';
+import { UploadsModule } from './uploads/uploads.module';
 import { User } from './users/user.entity';
 import { Vendor } from './vendors/vendor.entity';
 import { Category } from './categories/category.entity';
@@ -40,6 +41,7 @@ import { Order, OrderItem } from './orders/order.entity';
     CategoriesModule,
     ProductsModule,
     OrdersModule,
+    UploadsModule,
   ],
 })
 export class AppModule {}

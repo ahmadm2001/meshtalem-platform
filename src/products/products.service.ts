@@ -120,7 +120,7 @@ export class ProductsService {
 
     // Handle productOptions update
     if (dto['productOptions'] !== undefined) {
-      product.productOptions = dto['productOptions'] && dto['productOptions'].length > 0 ? dto['productOptions'] : null;
+      product.productOptions = dto['productOptions'] && dto['productOptions'].length > 0 ? (dto['productOptions'] as any) : null;
       delete dto['productOptions'];
     }
 
