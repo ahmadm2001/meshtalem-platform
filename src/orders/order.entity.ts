@@ -231,10 +231,27 @@ export class OrderItem {
 
   /**
    * Selected options snapshot at purchase time.
-   * Example: [{ groupName: "צבע", selectedValue: "כחול", priceModifier: 20 }]
+   * Stores both stable IDs and human-readable labels so the snapshot is
+   * self-contained and readable even if the product schema changes later.
+   *
+   * For single_radio / visual_card / color_grid groups, `selectedValueIds`
+   * contains exactly one entry.
+   * For multi_checkbox groups it may contain multiple entries.
+   *
+   * Example:
+   * [
+   *   { groupId: "door_type", groupName: "סוג דלת", selectedValueIds: ["double"], selectedValueLabels: ["דלת כפולה"], priceModifier: 10800 },
+   *   { groupId: "smart_upgrades", groupName: "שדרוגים", selectedValueIds: ["smart_lock","digital_viewer"], selectedValueLabels: ["מנעול חכם","עינית דיגיטלית"], priceModifier: 2650 }
+   * ]
    */
   @Column({ type: 'json', nullable: true, default: null })
-  selectedOptions: { groupName: string; selectedValue: string; priceModifier: number }[] | null;
+  selectedOptions: {
+    groupId: string;
+    groupName: string;
+    selectedValueIds: string[];
+    selectedValueLabels: string[];
+    priceModifier: number;
+  }[] | null;
 
   // Extra cost from selected options (sum of all priceModifiers)
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true, default: 0 })

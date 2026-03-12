@@ -31,26 +31,76 @@ export enum ProductWarranty {
   FIVE_YEARS = '5_years',
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Q DOOR Configurator Schema — Finalized v2
+// Stored as JSON in the `productOptions` column.
+// Backward-compatible: old records without `id` / `step` / `type` fields will
+// still render via the legacy radio-button fallback in the frontend.
+// ─────────────────────────────────────────────────────────────────────────────
+
 /**
- * Generic product option group structure.
- * Example:
- * {
- *   name: "צבע",
- *   values: [
- *     { label: "שחור", priceModifier: 0 },
- *     { label: "כחול", priceModifier: 20 }
- *   ]
- * }
+ * Controls which UI component is used to render an option group.
+ *  visual_card    — Large clickable cards with icon + price (door type, height)
+ *  color_grid     — Grid of solid color swatches with RAL codes
+ *  single_radio   — Standard single-choice radio list
+ *  multi_checkbox — Multiple selections allowed (upgrades, accessories)
  */
+export type OptionDisplayType =
+  | 'visual_card'
+  | 'color_grid'
+  | 'single_radio'
+  | 'multi_checkbox';
+
 export interface ProductOptionValue {
+  /** Stable unique identifier used as the state key (e.g. "double_door"). */
+  id: string;
+  /** Customer-facing label (e.g. "דלת כפולה"). */
   label: string;
+  /** Extra cost added to the base price. 0 = no extra cost. */
   priceModifier: number;
+  /** Hex color code for color_grid swatches (e.g. "#1A1A1A"). */
+  colorCode?: string;
+  /** Key that maps to an SVG/PNG illustration for visual_card. */
+  icon?: string;
+  /** URL of a product image to swap into the preview when this value is selected. */
+  imageOverride?: string;
+  /** Short descriptive text shown below the label (e.g. Smart Lock feature list). */
+  description?: string;
+}
+
+export interface OptionDependencyRule {
+  /** The `id` of the parent option group. */
+  groupId: string;
+  /** The `id` of the value that must be selected in the parent group. */
+  valueId: string;
 }
 
 export interface ProductOptionGroup {
+  /** Stable unique identifier used as the Zustand state key (e.g. "door_type"). */
+  id: string;
+  /** Customer-facing section title (e.g. "איזו דלת תבחרו?"). */
   name: string;
+  /** UI component type. Defaults to "single_radio" for backward compatibility. */
+  type: OptionDisplayType;
+  /** Wizard step number. Groups are rendered in ascending order. */
+  step: number;
+  /** If true, the customer must select a value before adding to cart. */
+  required: boolean;
+  /**
+   * Logical grouping used only in the admin panel to organise the builder UI.
+   * Suggested values: "structure" | "design" | "upgrades" | "installation"
+   */
+  adminCategory?: string;
+  /**
+   * When present, this group is only rendered if the specified parent group
+   * currently has the specified value selected.
+   */
+  dependsOn?: OptionDependencyRule;
+  /** The available choices for this group. */
   values: ProductOptionValue[];
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 export enum ProductDeliveryTime {
   SAME_DAY = 'same_day',
@@ -135,8 +185,18 @@ export class Product {
   colors: string[] | null;
 
   /**
-   * Generic product options - array of option groups with price modifiers.
-   * Example: [{ name: "צבע", values: [{ label: "שחור", priceModifier: 0 }, { label: "כחול", priceModifier: 20 }] }]
+   * Q DOOR Configurator options — stored as a JSON array of ProductOptionGroup objects.
+   *
+   * The column type is `json` (PostgreSQL stores this as JSONB internally when
+   * the column is declared without explicit type casting, but TypeORM's `json`
+   * type maps to the native `json` type; to use JSONB explicitly, set
+   * `{ type: 'jsonb' }` — both are safe for additive schema changes).
+   *
+   * Migration safety: This column is nullable with a null default, so existing
+   * rows are unaffected. New fields added to the interface (id, step, type, etc.)
+   * are optional from the database's perspective — the JSON payload is schema-free.
+   * Old records that contain only { name, values[] } will fall back to the
+   * legacy single_radio renderer in the frontend.
    */
   @Column({ type: 'json', nullable: true, default: null })
   productOptions: ProductOptionGroup[] | null;
