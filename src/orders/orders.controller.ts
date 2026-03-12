@@ -18,7 +18,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { UserRole, User } from '../users/user.entity';
-import { OrderStatus } from './order.entity';
+import { OrderStatus, ItemStatus } from './order.entity';
 
 @ApiTags('Orders - הזמנות')
 @Controller('orders')
@@ -31,6 +31,14 @@ export class OrdersController {
   @ApiOperation({ summary: 'יצירת הזמנה ללא התחברות (guest)' })
   createGuestOrder(@Body() dto: CreateOrderDto) {
     return this.ordersService.createGuestOrder(dto);
+  }
+
+  // ========== PUBLIC TRACKING ==========
+
+  @Get('track/:orderId')
+  @ApiOperation({ summary: 'מעקב הזמנה ציבורי (ללא התחברות)' })
+  trackOrder(@Param('orderId', ParseUUIDPipe) orderId: string) {
+    return this.ordersService.getOrderByIdPublic(orderId);
   }
 
   // ========== VENDOR ==========
@@ -51,6 +59,19 @@ export class OrdersController {
   @ApiOperation({ summary: 'סטטיסטיקות ספק' })
   getVendorStats(@CurrentUser() user: User) {
     return this.ordersService.getVendorStats(user.id);
+  }
+
+  @Put('vendor/items/:itemId/status')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.VENDOR)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'עדכון סטטוס פריט הזמנה (ספק)' })
+  updateItemStatus(
+    @Param('itemId', ParseUUIDPipe) itemId: string,
+    @Body('status') status: ItemStatus,
+    @CurrentUser() user: User,
+  ) {
+    return this.ordersService.updateItemStatus(itemId, user.id, status);
   }
 
   // ========== ADMIN ==========

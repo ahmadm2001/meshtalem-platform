@@ -7,10 +7,21 @@ import {
   ManyToOne,
   OneToMany,
   JoinColumn,
+  Index,
+  BeforeInsert,
 } from 'typeorm';
 import { User } from '../users/user.entity';
 
 export enum OrderStatus {
+  PENDING = 'pending',
+  CONFIRMED = 'confirmed',
+  PROCESSING = 'processing',
+  SHIPPED = 'shipped',
+  DELIVERED = 'delivered',
+  CANCELLED = 'cancelled',
+}
+
+export enum ItemStatus {
   PENDING = 'pending',
   CONFIRMED = 'confirmed',
   PROCESSING = 'processing',
@@ -27,9 +38,16 @@ export enum PaymentStatus {
 }
 
 @Entity('orders')
+@Index(['status'])
+@Index(['createdAt'])
+@Index(['customerId'])
 export class Order {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  // Auto-generated human-readable order number
+  @Column({ unique: true, nullable: true })
+  orderNumber: string;
 
   @ManyToOne(() => User, { eager: false, nullable: true })
   @JoinColumn({ name: 'customerId' })
@@ -38,7 +56,7 @@ export class Order {
   @Column({ nullable: true })
   customerId: string;
 
-  // Guest customer (no login required)
+  // Guest customer fields
   @Column({ nullable: true })
   guestName: string;
 
@@ -54,9 +72,12 @@ export class Order {
   })
   items: OrderItem[];
 
-  // Shipping address (home delivery only)
+  // Shipping address - raw (as entered by customer, usually Hebrew)
   @Column()
   shippingFullName: string;
+
+  @Column({ nullable: true })
+  shippingFullNameAr: string;
 
   @Column()
   shippingPhone: string;
@@ -64,8 +85,14 @@ export class Order {
   @Column()
   shippingCity: string;
 
+  @Column({ nullable: true })
+  shippingCityAr: string;
+
   @Column()
   shippingStreet: string;
+
+  @Column({ nullable: true })
+  shippingStreetAr: string;
 
   @Column({ nullable: true })
   shippingApartment: string;
@@ -76,13 +103,33 @@ export class Order {
   @Column({ nullable: true })
   shippingNotes: string;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2 })
-  subtotal: number;
+  @Column({ nullable: true })
+  shippingNotesAr: string;
+
+  // Financial snapshot at time of order
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  subtotalCustomer: number;   // sum of customerPrice × qty for all items
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  totalShipping: number;      // fixed shipping cost charged to customer
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  totalCustomer: number;      // subtotalCustomer + totalShipping (what customer pays)
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  totalVendorCost: number;    // sum of (vendorPrice + shippingFee) × qty for all items
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  totalProfit: number;        // totalCustomer - totalVendorCost
+
+  // Legacy fields kept for backward compatibility
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true, default: 0 })
+  subtotal: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true, default: 0 })
   shippingCost: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2 })
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true, default: 0 })
   total: number;
 
   @Column({ type: 'enum', enum: OrderStatus, default: OrderStatus.PENDING })
@@ -99,9 +146,20 @@ export class Order {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @BeforeInsert()
+  generateOrderNumber() {
+    const timestamp = Date.now().toString(36).toUpperCase();
+    const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+    this.orderNumber = `MSH-${timestamp}-${random}`;
+  }
 }
 
 @Entity('order_items')
+@Index(['vendorId'])
+@Index(['orderId'])
+@Index(['productId'])
+@Index(['itemStatus'])
 export class OrderItem {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -119,19 +177,76 @@ export class OrderItem {
   @Column()
   vendorId: string;
 
-  // Snapshot of product at time of purchase
-  @Column()
+  // Vendor name snapshot
+  @Column({ nullable: true })
+  vendorName: string;
+
+  // Product name snapshots (both languages)
+  @Column({ nullable: true })
   productNameHe: string;
+
+  @Column({ nullable: true })
+  productNameAr: string;
 
   @Column({ nullable: true })
   productImageUrl: string;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2 })
-  priceAtPurchase: number;
+  // Price snapshots at time of purchase
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  vendorPriceAtPurchase: number;      // what vendor charges
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  customerPriceAtPurchase: number;    // what customer pays (set by admin)
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  shippingFeeAtPurchase: number;      // vendor shipping fee
 
   @Column()
   quantity: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2 })
+  // Computed totals (snapshot)
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  vendorCostTotal: number;            // (vendorPriceAtPurchase + shippingFeeAtPurchase) × quantity
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  customerTotal: number;              // customerPriceAtPurchase × quantity
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  profitTotal: number;                // customerTotal - vendorCostTotal
+
+  // Legacy field kept for backward compatibility
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true, default: 0 })
+  priceAtPurchase: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true, default: 0 })
   lineTotal: number;
+
+  // Per-item status managed by vendor
+  @Column({ type: 'enum', enum: ItemStatus, default: ItemStatus.PENDING })
+  itemStatus: ItemStatus;
+
+  // Color selected by customer at purchase time (snapshot)
+  @Column({ type: 'varchar', nullable: true, default: null })
+  selectedColor: string | null;
+
+  /**
+   * Selected options snapshot at purchase time.
+   * Example: [{ groupName: "צבע", selectedValue: "כחול", priceModifier: 20 }]
+   */
+  @Column({ type: 'json', nullable: true, default: null })
+  selectedOptions: { groupName: string; selectedValue: string; priceModifier: number }[] | null;
+
+  // Extra cost from selected options (sum of all priceModifiers)
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true, default: 0 })
+  optionsExtraCost: number;
+
+  // Delivery time snapshot at purchase time
+  @Column({ type: 'varchar', nullable: true, default: null })
+  deliveryTimeAtPurchase: string | null;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 }

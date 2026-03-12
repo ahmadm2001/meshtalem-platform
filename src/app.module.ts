@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { AuthModule } from './auth/auth.module';
 import { VendorsModule } from './vendors/vendors.module';
 import { CategoriesModule } from './categories/categories.module';
@@ -33,6 +34,7 @@ import { Order, OrderItem } from './orders/order.entity';
         logging: configService.get<string>('NODE_ENV') === 'development',
       }),
     }),
+    EventEmitterModule.forRoot(),
     AuthModule,
     VendorsModule,
     CategoriesModule,

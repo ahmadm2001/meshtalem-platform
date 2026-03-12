@@ -10,6 +10,18 @@ import {
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
+export class SelectedOptionDto {
+  @IsString()
+  groupName: string;
+
+  @IsString()
+  selectedValue: string;
+
+  @IsNumber()
+  @Min(0)
+  priceModifier: number;
+}
+
 export class OrderItemDto {
   @ApiProperty({ example: 'uuid-of-product' })
   @IsUUID()
@@ -19,6 +31,23 @@ export class OrderItemDto {
   @IsNumber()
   @Min(1)
   quantity: number;
+
+  @ApiPropertyOptional({ example: 'blue' })
+  @IsOptional()
+  @IsString()
+  selectedColor?: string;
+
+  @ApiPropertyOptional({
+    example: [
+      { groupName: 'צבע', selectedValue: 'כחול', priceModifier: 20 },
+      { groupName: 'מידה', selectedValue: '3x3', priceModifier: 80 },
+    ]
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SelectedOptionDto)
+  selectedOptions?: SelectedOptionDto[];
 }
 
 export class CreateOrderDto {

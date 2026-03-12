@@ -1,13 +1,11 @@
 import {
   Injectable,
   NotFoundException,
-  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Product, ProductStatus } from './product.entity';
 import { Vendor } from '../vendors/vendor.entity';
-import { TranslationService } from '../common/services/translation.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 
@@ -18,7 +16,6 @@ export class ProductsService {
     private productRepository: Repository<Product>,
     @InjectRepository(Vendor)
     private vendorRepository: Repository<Vendor>,
-    private translationService: TranslationService,
   ) {}
 
   // Helper: get vendor.id from user.id
@@ -26,7 +23,7 @@ export class ProductsService {
     const vendor = await this.vendorRepository.findOne({
       where: { user: { id: userId } },
     });
-    if (!vendor) throw new NotFoundException('لم يتم العثور على ملف المورد');
+    if (!vendor) throw new NotFoundException('ספק לא נמצא');
     return vendor.id;
   }
 
@@ -34,21 +31,23 @@ export class ProductsService {
 
   async createProduct(userId: string, dto: CreateProductDto) {
     const vendorId = await this.getVendorIdByUserId(userId);
-    // Auto-translate Arabic content to Hebrew using AI
-    const { nameHe, descriptionHe } =
-      await this.translationService.translateProductContent(
-        dto.nameAr,
-        dto.descriptionAr || '',
-      );
 
+    // Platform is Hebrew-only: nameAr field is used for Hebrew input
+    // nameHe = nameAr (same value, no translation needed)
     const product = this.productRepository.create({
       vendorId,
       categoryId: dto.categoryId,
       nameAr: dto.nameAr,
       descriptionAr: dto.descriptionAr,
-      nameHe,
-      descriptionHe,
-      price: dto.price,
+      nameHe: dto.nameAr,         // Hebrew = same as input (no translation)
+      descriptionHe: dto.descriptionAr,
+      vendorPrice: dto.price,
+      customerPrice: dto.price,   // defaults to vendor price until admin changes it
+      shippingFee: dto.shippingFee || 0,
+      warranty: dto.warranty,
+      deliveryTime: dto.deliveryTime || null,
+      colors: dto.colors && dto.colors.length > 0 ? dto.colors : null,
+      productOptions: dto.productOptions && dto.productOptions.length > 0 ? dto.productOptions : null,
       stock: dto.stock,
       images: dto.images || [],
       status: ProductStatus.PENDING,
@@ -63,21 +62,43 @@ export class ProductsService {
       where: { id: productId, vendorId },
     });
 
-    if (!product) throw new NotFoundException('المنتج غير موجود');
+    if (!product) throw new NotFoundException('המוצר לא נמצא');
 
-    if (dto.nameAr || dto.descriptionAr) {
-      const { nameHe, descriptionHe } =
-        await this.translationService.translateProductContent(
-          dto.nameAr || product.nameAr,
-          dto.descriptionAr || product.descriptionAr || '',
-        );
-      dto['nameHe'] = nameHe;
-      dto['descriptionHe'] = descriptionHe;
+    // Hebrew-only: sync nameHe/descriptionHe with nameAr/descriptionAr
+    if (dto.nameAr) {
+      dto['nameHe'] = dto.nameAr;
       dto['translationApproved'] = false;
+    }
+    if (dto.descriptionAr !== undefined) {
+      dto['descriptionHe'] = dto.descriptionAr;
     }
 
     if (dto.nameAr || dto.descriptionAr || dto.price) {
       dto['status'] = ProductStatus.PENDING;
+    }
+
+    // Vendor can only update vendorPrice, not customerPrice
+    if (dto.price !== undefined) {
+      dto['vendorPrice'] = dto.price;
+      delete dto.price;
+    }
+
+    // Handle colors update
+    if (dto['colors'] !== undefined) {
+      product.colors = dto['colors'] && dto['colors'].length > 0 ? dto['colors'] : null;
+      delete dto['colors'];
+    }
+
+    // Handle productOptions update
+    if (dto['productOptions'] !== undefined) {
+      product.productOptions = dto['productOptions'] && dto['productOptions'].length > 0 ? dto['productOptions'] : null;
+      delete dto['productOptions'];
+    }
+
+    // Handle deliveryTime update
+    if (dto['deliveryTime'] !== undefined) {
+      product.deliveryTime = dto['deliveryTime'] || null;
+      delete dto['deliveryTime'];
     }
 
     Object.assign(product, dto);
@@ -89,9 +110,9 @@ export class ProductsService {
     const product = await this.productRepository.findOne({
       where: { id: productId, vendorId },
     });
-    if (!product) throw new NotFoundException('المنتج غير موجود');
+    if (!product) throw new NotFoundException('המוצר לא נמצא');
     await this.productRepository.remove(product);
-    return { message: 'تم حذف المنتج بنجاح' };
+    return { message: 'המוצר נמחק בהצלחה' };
   }
 
   async getVendorProducts(userId: string) {
@@ -127,7 +148,11 @@ export class ProductsService {
         'product.id',
         'product.nameHe',
         'product.descriptionHe',
-        'product.price',
+        'product.customerPrice',
+        'product.warranty',
+        'product.deliveryTime',
+        'product.colors',
+        'product.productOptions',
         'product.stock',
         'product.images',
         'product.createdAt',
@@ -143,17 +168,17 @@ export class ProductsService {
 
     if (filters?.search) {
       query.andWhere(
-        '(product.nameHe ILIKE :search OR product.descriptionHe ILIKE :search OR product.nameAr ILIKE :search)',
+        '(product.nameHe LIKE :search OR product.descriptionHe LIKE :search OR product.nameAr LIKE :search)',
         { search: `%${filters.search}%` },
       );
     }
 
     if (filters?.minPrice) {
-      query.andWhere('product.price >= :minPrice', { minPrice: filters.minPrice });
+      query.andWhere('product.customerPrice >= :minPrice', { minPrice: filters.minPrice });
     }
 
     if (filters?.maxPrice) {
-      query.andWhere('product.price <= :maxPrice', { maxPrice: filters.maxPrice });
+      query.andWhere('product.customerPrice <= :maxPrice', { maxPrice: filters.maxPrice });
     }
 
     const [products, total] = await query
@@ -179,7 +204,11 @@ export class ProductsService {
         'product.id',
         'product.nameHe',
         'product.descriptionHe',
-        'product.price',
+        'product.customerPrice',
+        'product.warranty',
+        'product.deliveryTime',
+        'product.colors',
+        'product.productOptions',
         'product.stock',
         'product.images',
         'product.createdAt',
@@ -236,18 +265,12 @@ export class ProductsService {
     });
     if (!product) throw new NotFoundException('המוצר לא נמצא');
 
-    // Auto-translate if Hebrew name is missing or same as Arabic
-    if (!product.nameHe || product.nameHe === product.nameAr) {
-      try {
-        const { nameHe, descriptionHe } = await this.translationService.translateProductContent(
-          product.nameAr,
-          product.descriptionAr || '',
-        );
-        product.nameHe = nameHe;
-        if (descriptionHe) product.descriptionHe = descriptionHe;
-      } catch (e) {
-        // Translation failed - keep existing values
-      }
+    // Hebrew-only: ensure nameHe is set
+    if (!product.nameHe) {
+      product.nameHe = product.nameAr;
+    }
+    if (!product.descriptionHe && product.descriptionAr) {
+      product.descriptionHe = product.descriptionAr;
     }
 
     product.status = ProductStatus.APPROVED;
@@ -276,15 +299,38 @@ export class ProductsService {
     });
     if (!product) throw new NotFoundException('המוצר לא נמצא');
 
-    // If admin changes Arabic content, re-translate
-    if (dto.nameAr || dto.descriptionAr) {
-      const { nameHe, descriptionHe } =
-        await this.translationService.translateProductContent(
-          dto.nameAr || product.nameAr,
-          dto.descriptionAr || product.descriptionAr || '',
-        );
-      if (!dto.nameHe) dto.nameHe = nameHe;
-      if (!dto.descriptionHe) dto.descriptionHe = descriptionHe;
+    // Hebrew-only: sync nameHe with nameAr if nameAr is updated
+    if (dto.nameAr && !dto.nameHe) {
+      dto.nameHe = dto.nameAr;
+    }
+    if (dto.descriptionAr !== undefined && !dto.descriptionHe) {
+      dto.descriptionHe = dto.descriptionAr;
+    }
+
+    // Admin sets customerPrice separately; vendorPrice is never changed by admin
+    if (dto.price !== undefined) {
+      product.customerPrice = dto.price;
+      delete dto.price;
+    }
+    // Never allow admin to overwrite vendorPrice
+    delete dto.vendorPrice;
+
+    // Handle colors
+    if (dto.colors !== undefined) {
+      product.colors = dto.colors && dto.colors.length > 0 ? dto.colors : null;
+      delete dto.colors;
+    }
+
+    // Handle productOptions
+    if (dto.productOptions !== undefined) {
+      product.productOptions = dto.productOptions && dto.productOptions.length > 0 ? dto.productOptions : null;
+      delete dto.productOptions;
+    }
+
+    // Handle deliveryTime
+    if (dto.deliveryTime !== undefined) {
+      product.deliveryTime = dto.deliveryTime || null;
+      delete dto.deliveryTime;
     }
 
     Object.assign(product, dto);
