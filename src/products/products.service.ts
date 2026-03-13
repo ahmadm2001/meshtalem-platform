@@ -179,17 +179,20 @@ export class ProductsService {
       .createQueryBuilder('product')
       .leftJoinAndSelect('product.category', 'category')
       .where('product.status = :status', { status: ProductStatus.APPROVED })
-      .andWhere('product.stock > 0')
       .andWhere('product.isHidden = false')
       .select([
         'product.id',
         'product.nameHe',
         'product.descriptionHe',
         'product.customerPrice',
+        'product.baseEstimatedPrice',
+        'product.depositAmount',
+        'product.manufacturingTime',
         'product.warranty',
         'product.deliveryTime',
         'product.colors',
         'product.productOptions',
+        'product.doorVariants',
         'product.stock',
         'product.images',
         'product.createdAt',
