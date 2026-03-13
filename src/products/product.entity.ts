@@ -128,11 +128,11 @@ export class Product {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => Vendor, { eager: false })
+  @ManyToOne(() => Vendor, { eager: false, nullable: true })
   @JoinColumn({ name: 'vendorId' })
   vendor: Vendor;
 
-  @Column()
+  @Column({ nullable: true })
   vendorId: string;
 
   @ManyToOne(() => Category, { eager: true, nullable: true })
