@@ -6,6 +6,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Product, ProductStatus } from './product.entity';
 import { Vendor } from '../vendors/vendor.entity';
+import { Category } from '../categories/category.entity';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 
@@ -16,6 +17,8 @@ export class ProductsService {
     private productRepository: Repository<Product>,
     @InjectRepository(Vendor)
     private vendorRepository: Repository<Vendor>,
+    @InjectRepository(Category)
+    private categoryRepository: Repository<Category>,
   ) {}
 
   // Helper: get vendor.id from user.id
@@ -201,8 +204,14 @@ export class ProductsService {
       ]);
 
     if (filters?.categoryId) {
-      query.andWhere('product.categoryId = :categoryId', {
-        categoryId: filters.categoryId,
+      // Include products from subcategories of the given category
+      const subCats = await this.categoryRepository.find({
+        where: { parent: { id: filters.categoryId } },
+        select: ['id'],
+      });
+      const allCategoryIds = [filters.categoryId, ...subCats.map((c) => c.id)];
+      query.andWhere('product.categoryId IN (:...categoryIds)', {
+        categoryIds: allCategoryIds,
       });
     }
 
