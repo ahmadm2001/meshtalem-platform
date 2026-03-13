@@ -52,6 +52,7 @@ export class ProductsService {
             id: v.id,
             label: v.label,
             basePrice: Number(v.basePrice) || 0,
+            image: v.image || null,
           }))
         : null,
       stock: 0,  // Doors are made-to-order, no stock tracking
@@ -394,6 +395,7 @@ export class ProductsService {
             id: v.id,
             label: v.label,
             basePrice: Number(v.basePrice) || 0,
+            image: v.image || null,
           }))
         : null;
       delete dto.doorVariants;

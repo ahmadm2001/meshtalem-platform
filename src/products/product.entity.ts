@@ -110,6 +110,8 @@ export interface DoorVariant {
   id: 'single' | 'single_half' | 'double';
   label: string;   // e.g. "דלת"
   basePrice: number;
+  /** Optional image URL for this variant (Cloudinary CDN or data URL) */
+  image?: string | null;
 }
 
 export enum ProductDeliveryTime {
