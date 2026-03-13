@@ -23,17 +23,31 @@ import { Order, OrderItem } from './orders/order.entity';
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        host: configService.get<string>('DB_HOST', 'localhost'),
-        port: configService.get<number>('DB_PORT', 5432),
-        username: configService.get<string>('DB_USERNAME', 'postgres'),
-        password: configService.get<string>('DB_PASSWORD', 'password'),
-        database: configService.get<string>('DB_NAME', 'meshtalem_db'),
-        entities: [User, Vendor, Category, Product, Order, OrderItem],
-        synchronize: configService.get<string>('NODE_ENV') !== 'production',
-        logging: configService.get<string>('NODE_ENV') === 'development',
-      }),
+      useFactory: (configService: ConfigService) => {
+        const databaseUrl = configService.get<string>('DATABASE_URL');
+        const isProduction = configService.get<string>('NODE_ENV') === 'production';
+        if (databaseUrl) {
+          return {
+            type: 'postgres' as const,
+            url: databaseUrl,
+            entities: [User, Vendor, Category, Product, Order, OrderItem],
+            synchronize: true,
+            ssl: { rejectUnauthorized: false },
+            logging: false,
+          };
+        }
+        return {
+          type: 'postgres' as const,
+          host: configService.get<string>('DB_HOST', 'localhost'),
+          port: configService.get<number>('DB_PORT', 5432),
+          username: configService.get<string>('DB_USERNAME', 'postgres'),
+          password: configService.get<string>('DB_PASSWORD', 'password'),
+          database: configService.get<string>('DB_NAME', 'meshtalem_db'),
+          entities: [User, Vendor, Category, Product, Order, OrderItem],
+          synchronize: !isProduction,
+          logging: !isProduction,
+        };
+      },
     }),
     EventEmitterModule.forRoot(),
     AuthModule,
