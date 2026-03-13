@@ -102,6 +102,16 @@ export interface ProductOptionGroup {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Fixed built-in door variant — always 3 per product.
+ * id: 'single' | 'single_half' | 'double'
+ */
+export interface DoorVariant {
+  id: 'single' | 'single_half' | 'double';
+  label: string;   // e.g. "דלת"
+  basePrice: number;
+}
+
 export enum ProductDeliveryTime {
   SAME_DAY = 'same_day',
   ONE_TWO_DAYS = '1_2_days',
@@ -222,6 +232,15 @@ export class Product {
    */
   @Column({ nullable: true, default: null })
   manufacturingTime: string | null;
+
+  /**
+   * Fixed built-in door variants — always 3 entries:
+   * דלת | דלת וחצי | דלת כפולה
+   * Each has its own base price. When the customer selects a variant,
+   * the product base price updates to that variant's basePrice.
+   */
+  @Column({ type: 'json', nullable: true, default: null })
+  doorVariants: DoorVariant[] | null;
 
   // ─── Legacy / marketplace fields (kept for backward compatibility) ────────────
 

@@ -47,6 +47,13 @@ export class ProductsService {
       deliveryTime: dto.deliveryTime || null,
       colors: dto.colors && dto.colors.length > 0 ? dto.colors : null,
       productOptions: dto.productOptions && dto.productOptions.length > 0 ? dto.productOptions : null,
+      doorVariants: Array.isArray(dto.doorVariants) && dto.doorVariants.length > 0
+        ? dto.doorVariants.map((v: any) => ({
+            id: v.id,
+            label: v.label,
+            basePrice: Number(v.basePrice) || 0,
+          }))
+        : null,
       stock: 0,  // Doors are made-to-order, no stock tracking
       images: dto.images || [],
       categoryId: dto.categoryId || null,
@@ -238,6 +245,10 @@ export class ProductsService {
         'product.deliveryTime',
         'product.colors',
         'product.productOptions',
+        'product.doorVariants',
+        'product.baseEstimatedPrice',
+        'product.depositAmount',
+        'product.manufacturingTime',
         'product.stock',
         'product.images',
         'product.createdAt',
@@ -376,6 +387,16 @@ export class ProductsService {
     if (dto.manufacturingTime !== undefined) {
       product.manufacturingTime = dto.manufacturingTime || null;
       delete dto.manufacturingTime;
+    }
+    if (dto.doorVariants !== undefined) {
+      product.doorVariants = Array.isArray(dto.doorVariants) && dto.doorVariants.length > 0
+        ? dto.doorVariants.map((v: any) => ({
+            id: v.id,
+            label: v.label,
+            basePrice: Number(v.basePrice) || 0,
+          }))
+        : null;
+      delete dto.doorVariants;
     }
 
     Object.assign(product, dto);
