@@ -232,7 +232,7 @@ export class Product {
   /**
    * Manufacturing / lead time shown to the customer (e.g. "4-6 שבועות").
    */
-  @Column({ nullable: true, default: null })
+  @Column({ type: 'varchar', length: 100, nullable: true, default: null })
   manufacturingTime: string | null;
 
   /**
