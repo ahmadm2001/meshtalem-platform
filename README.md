@@ -68,7 +68,7 @@ The backend will run on **http://localhost:3000**
 
 After first run, seed data creates:
 - **Email:** admin@meshtalem.com
-- **Password:** Admin@2024
+- **Password:** *********
 
 ## Project Structure
 
